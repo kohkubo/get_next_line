@@ -1,9 +1,15 @@
 #include "get_next_line.h"
 
+#define FD_MAX 1024
 #ifndef BUFFER_SIZE
-# define BUFFER_SIZE 1024
+#define BUFFER_SIZE 1024
 #endif
-#define SAFE_FREE(p) {free(p);p = NULL;}
+
+#define SAFE_FREE(p) \
+	{                \
+		free(p);     \
+		p = NULL;    \
+	}
 #define ERROR -1
 #define CONTINUE 1
 #define END 0
@@ -12,8 +18,6 @@ static size_t ft_strlen(char *s)
 {
 	size_t i = 0;
 
-	if (!s)
-		return (0);
 	while (s[i])
 		i++;
 	return (i);
@@ -33,20 +37,16 @@ static char *ft_strjoin(char *s, char *d)
 	if (!(dst = malloc(ft_strlen(s) + ft_strlen(d) + 1)))
 		return (NULL);
 	head = dst;
-	if (s)
-		while (*s)
-			*dst++ = *s++;
-	if (d)
-		while (*d)
-			*dst++ = *d++;
+	while (*s)
+		*dst++ = *s++;
+	while (*d)
+		*dst++ = *d++;
 	*dst = '\0';
 	return (head);
 }
 
 static char *ft_strn(char *s)
 {
-	if (!s)
-		return (0);
 	while (*s && *s != '\n')
 		s++;
 	return (s);
@@ -54,8 +54,6 @@ static char *ft_strn(char *s)
 
 static int is_n(char *s)
 {
-	if (!s)
-		return (0);
 	while (*s && *s != '\n')
 		s++;
 	return (*s == '\n');
@@ -82,7 +80,7 @@ static int store_line(char **line, char **s)
 		return (END);
 	}
 	else
-		*s = free_return(s, ft_strjoin(++tmp, NULL));
+		*s = free_return(s, ft_strjoin(++tmp, ""));
 	return (CONTINUE);
 }
 
@@ -96,7 +94,7 @@ static int read_file(int fd, char **s)
 	rc = 1;
 	while (0 < rc && !is_n(*s))
 	{
-		if ((rc = read(fd, buf, BUFFER_SIZE)) == ERROR)
+		if ((rc = read(fd, buf, BUFFER_SIZE)) < 0)
 		{
 			SAFE_FREE(buf);
 			SAFE_FREE(*s);
@@ -114,11 +112,17 @@ static int read_file(int fd, char **s)
 
 int get_next_line(int fd, char **line)
 {
-	static char *s;
+	static char *s[FD_MAX];
 
 	if (!line || BUFFER_SIZE <= 0 || read(fd, 0, 0) == ERROR)
 		return (ERROR);
-	if (read_file(fd, &s) == ERROR)
+	if (s[fd] == NULL)
+	{
+		if (!(s[fd] = malloc(1)))
+			return (ERROR);
+		*s[fd] = '\0';
+	}
+	if (read_file(fd, &s[fd]) == ERROR)
 		return (ERROR);
-	return (store_line(line, &s));
+	return (store_line(line, &s[fd]));
 }
